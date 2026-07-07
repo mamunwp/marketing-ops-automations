@@ -1,0 +1,263 @@
+{
+  "name": "Marketing Standup Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 5,
+              "triggerAtMinute": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -768,
+        64
+      ],
+      "id": "3bf1337f-6b64-45f0-87a6-43b416993cd7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "history",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AF0CD2QUE",
+          "mode": "list",
+          "cachedResultName": "bot-lab"
+        },
+        "limit": 15,
+        "filters": {
+          "oldest": "={{ $now.minus({ hours: 24 }).toUnixInteger() }}"
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -560,
+        64
+      ],
+      "id": "61536874-25f8-4251-8939-9f845d35e74a",
+      "name": "Get the history of a channel",
+      "webhookId": "b6622ca3-0e7f-4342-9078-955e3f8f6708",
+      "credentials": {
+        "slackApi": {
+          "id": "m9vWp4J2uTu7r6qx",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "24db253c-0737-494f-98e9-365ea84c5f5e",
+              "leftValue": "={{ ($json.text || \"\").toLowerCase().includes(\"standup\") }}",
+              "rightValue": "Standup",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -352,
+        64
+      ],
+      "id": "e5a9dc7f-c5f6-474d-ab4d-a9bf26e13f04",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "replies",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AF0CD2QUE",
+          "mode": "list",
+          "cachedResultName": "bot-lab"
+        },
+        "ts": "={{ $json.ts }}",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -144,
+        -32
+      ],
+      "id": "a0b384e9-5502-49e2-a2c1-aa67a1401f56",
+      "name": "Get a thread of messages posted to a channel",
+      "webhookId": "5ceb5e75-4c81-4fb5-b482-4a818e7a1665",
+      "credentials": {
+        "slackApi": {
+          "id": "m9vWp4J2uTu7r6qx",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=System Context:\nToday's date is: {{ $now.toFormat('MMMM dd, yyyy') }}.\nYou are analyzing a Slack channel log to generate a daily task update summary for human team members.\n\nStrict Filtering & Anti-Hallucination Rules:\n\nEXCLUDE BOTS & SYSTEM MESSAGES: Completely ignore any messages sent by bots, integrations, or Slack system events (such as \"joined the channel\"). Never create a task summary block for the bot itself.\n\nZERO HALLUCINATION: Rely ONLY on the explicit text written by human users in the provided log. If a user has not posted an actual task update within the log, do NOT invent, assume, or reuse past tasks. Instead, output exactly:\n📅 Yesterday: tasks not shared yet\n🎯 Today: tasks not shared yet\n🚧 Blockers: None\n\nStrict Formatting Rules (Matching image_40c95f.jpg):\n3. MAIN HEADER: Start the very top of the message exactly with: 🌟 Task Updates\n4. SEPARATORS: Use exactly three hyphens (---) on a new line to separate each human user's block. (Do not use double hyphens anywhere).\n5. USER HEADERS: Do not use bold text. You MUST wrap the raw Slack ID in angle brackets with an @ symbol: 👤 User: <@THEIR_SLACK_ID>\n6. CLEAN LAYOUT: Do not use bold labels or bullet points for the main update sections. Match this exactly:\n📅 Yesterday: [text]\n🎯 Today: [text]\n🚧 Blockers: [text]\n7. DEADLINES SECTION: Create a section at the bottom titled exactly: 🚨 Active Deadlines\n8. DEADLINE ITEMS: Only list active deadlines explicitly mentioned in the current log. Format exactly like this with no hyphens or bullet points:\n🚨 <@THEIR_SLACK_ID>: [deadline text]\nIf no deadlines are found in the log, leave this section completely blank.\n\nThread replies / Channel log:\n{{ JSON.stringify($input.all(), null, 2) }}"
+            },
+            {
+              "content": "=System Context:\nToday's date is: {{ $now.toFormat('MMMM dd, yyyy') }}.\nYou are analyzing a Slack thread to generate a consolidated, minimal daily task update.\n\nStrict Rules:\n\nMAIN HEADER: Start the very top of the message exactly with: 🌟 Task Updates\n\nSEPARATORS: Use exactly three hyphens (---) on a new line to separate each user's block. (Do not use double hyphens anywhere in your response).\n\nUSER HEADERS (CRITICAL): Do not use bold text. You MUST wrap the raw Slack ID in angle brackets with an @ symbol so Slack can translate it into their real name. Format it exactly like this: 👤 User: <@THEIR_SLACK_ID>\n\nTIME-AWARENESS & LEAVES: Compare message timestamps to Today's Date. If a user has previous updates in the thread but did NOT post a new message TODAY, you MUST output exactly this line for today: 🎯 Today: tasks not shared yet.\n\nCLEAN FORMATTING: Do NOT use bolding (**) or bullet points for labels. Use exactly this layout:\n📅 Yesterday: [text]\n🎯 Today: [text]\n🚧 Blockers: [text]\n\nDYNAMIC DEADLINES: Convert mentioned dates (like \"June 3rd\") into relative terms (e.g., \"the day after tomorrow\") based on Today's Date.\n\nDEADLINES SECTION: Create a section at the bottom titled exactly: 🚨 Active Deadlines\n\nDEADLINE ITEMS: For each deadline, do NOT use bullet points or hyphens. Use the siren emoji and the exact bracket formatting for the user ID. Format exactly like this:\n🚨 <@THEIR_SLACK_ID>: [deadline text]\n\nOutput standard text. Do NOT wrap the response in markdown code blocks. Output ONLY the updates and the deadlines.\n\nThread replies:\n{{ JSON.stringify($input.all(), null, 2) }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -32
+      ],
+      "id": "cd3a165d-72f9-4308-9924-639d5c410183",
+      "name": "Message a model",
+      "executeOnce": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "Rz1C5ibFRb0dtTZj",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AF0CD2QUE",
+          "mode": "list",
+          "cachedResultName": "bot-lab"
+        },
+        "text": "={{$json.output[0].content[0].text}}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        -32
+      ],
+      "id": "9370d233-bf4b-49ee-8e35-a3a4066cc499",
+      "name": "Send a message",
+      "webhookId": "740b458c-0eb3-43e0-8db6-89fbe4e61cce",
+      "credentials": {
+        "slackApi": {
+          "id": "m9vWp4J2uTu7r6qx",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get the history of a channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get the history of a channel": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Get a thread of messages posted to a channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get a thread of messages posted to a channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a thread of messages posted to a channel": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "74da48ce-0984-403f-9d3b-4ffa78b5f226",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60f86ae946244fbc0c16d82ac8e256a1257649fd24b2e151e5249583b781560f"
+  },
+  "id": "B6rfXxUAdpPSA8PQ",
+  "tags": []
+}
